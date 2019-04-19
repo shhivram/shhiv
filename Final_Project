@@ -1,0 +1,2080 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct  15 06:48:44 2018
+
+@author: shhiv
+"""
+"======================================================================== PHASE 1 =================================================================="
+"=======================================================IMPORTING THE NECESSARY PACKAGES AND DATASET================================================"
+'# Importing the packages'
+import pandas as pd
+import numpy as mp
+import matplotlib.pyplot as plt
+import pandas_profiling as pp
+from sklearn.metrics import accuracy_score, log_loss
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import f1_score
+from imblearn.over_sampling import SMOTE 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import precision_score, recall_score, classification_report
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+
+
+
+'# Importing the dataset'
+usd_applicant_dataset = pd.read_csv('c.txt', sep = "\t")
+
+"======================================================================== PHASE 2=================================================================="
+"===============================================================PRELIMINARY EXPLORATORY DATA ANALYSIS=============================================="
+"============================================================DISCRIPTIVE STATISTICS AND DATA PREPROCESSING========================================="
+'# Descriptive Statistics'
+usd_applicant_dataset.shape  
+'# shape of the dataset(855969, 73)'
+
+usd_applicant_dataset.info()
+'# Almost all columns have missing values'
+'# Considerablely few columns that have a good volume of NaNs'
+
+
+'# More Drill down on descriptive statistics'
+'# Column names and numbering for effective access of the columns'
+column_names = usd_applicant_dataset.columns
+j =0
+while j < len(column_names):
+    print(j,",", column_names[j])
+    j += 1
+
+'# Descriptive statistics columnwise'
+i = 0
+objectdtypes = {}
+Numericdtypes = {}
+print("Descriptive Statistics of the data")
+while i < len(column_names):
+    if ((usd_applicant_dataset[column_names[i]].dtype) == "float64" or (usd_applicant_dataset[column_names[i]].dtype) == "int64"):
+        print(column_names[i], "- Stats",usd_applicant_dataset[column_names[i]].describe())
+        Numericdtypes[i] = column_names[i]
+    else:
+        print(column_names[i], "- Stats",usd_applicant_dataset[column_names[i]].value_counts(),
+              "\n Total number of classes with this valriable",
+              len(usd_applicant_dataset[column_names[i]].value_counts()))
+        objectdtypes[i] = column_names[i]
+    print("-------------------------------------------------------")
+    i += 1
+
+'#---------------------------------------------------------------------------------------------------'
+    
+'# Exploratory Data Analysis'
+pp.ProfileReport(usd_applicant_dataset_train).to_file(outputfile = r'C:\Users\shhiv\Desktop\Final Project\EDA_Report.html')
+
+'Inferences drawn from the EDA'
+'Check the profile roport file'
+
+
+'Recknowing the points to support the elimination of the following columns based on the above inference'
+
+"Data preprocessing based on the inferences drawn from the EDA"
+"Finding the columns with NaNs and Zeros"
+
+column_names = usd_applicant_dataset.columns
+
+k = 0
+na_cols = {}
+while k < len(column_names):
+    if (usd_applicant_dataset[column_names[k]].isnull().sum()>0):
+        na_cols[k] = column_names[k]
+    else:
+        pass
+    k += 1
+print(len(na_cols))        
+
+fixable_cols = {}
+Percentage_of_fixable_cols = {}
+Cols_with_44_80_percent_NaNs = {}
+Percentaage_of_Cols_with_46_80_percent_NaNs = {}
+More_than_80_percent_NaNs = {}
+for a in na_cols.keys():
+    if(usd_applicant_dataset[column_names[a]].isnull().sum()>0 and
+       usd_applicant_dataset[column_names[a]].isnull().sum()<385186):
+        print("These columns have less than 45% NaNs")
+        fixable_cols[a] = column_names[a]
+        percent = (usd_applicant_dataset[column_names[a]].isnull().sum()*100)/(usd_applicant_dataset.shape[0])
+        Percentage_of_fixable_cols[fixable_cols[a]] = percent
+        percent = 0
+    else:
+        pass
+    if(usd_applicant_dataset[column_names[a]].isnull().sum()>385186 and
+       usd_applicant_dataset[column_names[a]].isnull().sum()<684775):
+        print("Cols with NaNs> 45 and <80")
+        Cols_with_44_80_percent_NaNs[a] = column_names[a]
+        percent = (usd_applicant_dataset[column_names[a]].isnull().sum()*100)/(usd_applicant_dataset.shape[0])
+        Percentaage_of_Cols_with_46_80_percent_NaNs[Cols_with_44_80_percent_NaNs[a]]= percent
+        percent = 0
+    else:
+        pass
+    
+    if(usd_applicant_dataset[column_names[a]].isnull().sum()>684775):
+        More_than_80_percent_NaNs[a] = column_names[a]
+    else:
+        pass
+
+if(len(na_cols) == ((len(More_than_80_percent_NaNs))+(len(Cols_with_44_80_percent_NaNs))+(len(fixable_cols)))):
+    print("All the NaNs are taken into account")
+else:
+    print("Some NaNs are missing")
+
+"Removint the cols with more than 80% NaNs"
+usd_applicant_dataset_1 = usd_applicant_dataset.loc[:, usd_applicant_dataset.isnull().mean() <= .8]    
+
+i =1        
+for a in More_than_80_percent_NaNs.values():
+    if (a in usd_applicant_dataset_1.columns):
+        pass
+    else:
+        print(i,"All more than 80% NaN cols are removed successfully")
+    i += 1    
+
+"#-------------------------------------------------------------------------------------------------"
+"# A trial to romove the rows with all nan in all nan columns"
+"# Retriving all the columns and getting the count of number of columns with nan"
+usd_applicant_dataset_1.isnull().any().sum()
+
+"retrving the rowise nan count"
+rows_with_all_nans ={}
+
+(usd_applicant_dataset_1.isnull().sum( axis = 1)==13).any()
+"Out[326]: False"
+
+'# Summary'
+"The idea was to remove rows with all nan in all nan columns becuase imputuing them is of no use"
+"Becuase those applicants have loss of information"
+"Luckily none of the rows fall in category, inference gather from the above code"
+
+
+" Imputing the missing values"
+"We have rplaced it with the mode value"
+usd_applicant_dataset_1['last_pymnt_d'].mode()
+"^ Jan-2016"
+usd_applicant_dataset_1['last_pymnt_d'].fillna("Jan-2016", inplace = True)
+
+usd_applicant_dataset_1['next_pymnt_d'].mode()
+"^ Feb-2016"
+usd_applicant_dataset_1['next_pymnt_d'].fillna("Feb-2016", inplace = True)
+
+usd_applicant_dataset_1['last_credit_pull_d'].mode()
+"^ Jan-2016"
+usd_applicant_dataset_1['last_credit_pull_d'].fillna("Jan-2016", inplace = True)
+
+
+"Changing the datatype of date columns to datetype"
+usd_applicant_dataset_1['last_pymnt_d'] = pd.to_datetime(usd_applicant_dataset_1['last_pymnt_d'], format = '%b-%Y') 
+
+usd_applicant_dataset_1['next_pymnt_d'] = pd.to_datetime(usd_applicant_dataset_1['next_pymnt_d'], format = '%b-%Y') 
+
+usd_applicant_dataset_1['last_credit_pull_d'] = pd.to_datetime(usd_applicant_dataset_1['last_credit_pull_d'], format = '%b-%Y') 
+
+usd_applicant_dataset_1['issue_d'] = pd.to_datetime(usd_applicant_dataset_1['issue_d'], format = '%b-%Y') 
+
+usd_applicant_dataset_1['earliest_cr_line'] = pd.to_datetime(usd_applicant_dataset_1['earliest_cr_line'], format= '%b-%Y')
+
+
+
+" Imputing the string values first because the distribution has to be checked in the case of a numerical col"
+
+for i in fixable_cols.values():
+    print(i," ",usd_applicant_dataset_1[i].dtypes)
+    
+
+usd_applicant_dataset_1['emp_length'].mode()
+usd_applicant_dataset_1['emp_length'].fillna("10+ years", inplace = True)
+
+usd_applicant_dataset_1['emp_title'].mode()
+usd_applicant_dataset_1['emp_title'].fillna("Teacher", inplace = True)
+
+usd_applicant_dataset_1['title'].mode()
+usd_applicant_dataset_1['title'].fillna("Debt consolidation", inplace = True)
+
+
+"# Checking the hist of the numerical cols"    
+usd_applicant_dataset_1['revol_util'].hist()
+plt.title("Histogram of revol_util")
+"# Left skew"
+
+usd_applicant_dataset_1['collections_12_mths_ex_med'].hist()
+plt.title("Histogram of collections_12_mths_ex_med")
+"# Left skew"
+
+usd_applicant_dataset_1['tot_coll_amt'].hist()
+plt.title("Histogram of tot_coll_amt")
+"# Left skew"
+
+usd_applicant_dataset_1['tot_cur_bal'].hist()
+plt.title("Histogram of tot_cur_bal")
+"# Left skew"
+
+usd_applicant_dataset_1['total_rev_hi_lim'].hist()
+plt.title("Histogram of total_rev_hi_lim")
+"# Left skew"
+"# Since all the four cols are left skewed , let's replce them by their medians,
+"Imputing numerical cols"
+for i in fixable_cols.values():
+    if(usd_applicant_dataset_1[i].dtype == "int64" or usd_applicant_dataset_1[i].dtype == "float64"):
+        usd_applicant_dataset_1[i].fillna(usd_applicant_dataset_1[i].median(), inplace =True)
+    else:
+        pass
+
+
+"Checking for nans in fixable cols"
+for i in fixable_cols.values():
+    if(usd_applicant_dataset_1[i].isnull().any()):
+        print(i, "Nan exists")
+    else:
+        print("All Nas are fixed")
+        
+        
+"# Dealing with columns with more than 44% Nans"
+
+usd_applicant_dataset_1['mths_since_last_delinq'].hist()
+"Left skewed bell curve"
+
+usd_applicant_dataset_1['mths_since_last_major_derog'].hist()
+"Left skewed bell curve"
+
+
+"Filling the missing values"
+usd_applicant_dataset_1['mths_since_last_delinq'].fillna(usd_applicant_dataset_1['mths_since_last_delinq'].median, inplace = True)
+usd_applicant_dataset_1['mths_since_last_major_derog'].fillna(usd_applicant_dataset_1['mths_since_last_major_derog'].median, inplace = True)
+
+usd_applicant_dataset_1.isnull().any().sum()
+"# ^^ All NaNs are successfully imputed"
+
+
+"# Experimenting with removing columns more than 50% of NaNs"
+usd_applicant_dataset_2 = usd_applicant_dataset_1
+
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('mths_since_last_delinq', axis =1)
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('mths_since_last_major_derog', axis =1)
+
+
+"# Removing the unnecessary columns in usd_applicant_dataset_2"
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('member_id', axis = 1)
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('id', axis = 1)
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('policy_code', axis = 1)
+usd_applicant_dataset_2 = usd_applicant_dataset_2.drop('zip_code', axis =1)
+    
+"# checking the credblity of zero columns"
+number_of_zeros = (usd_applicant_dataset_1 == 0).astype(int).sum(axis =0)
+print("Number of zero cols", len(number_of_zeros[number_of_zeros>0]))
+
+"# Before moving further with the Zero columns"
+"# Should ensure weather they are in correct data type"
+"# There are 26 columns with zeros in it"
+col_names1 = usd_applicant_dataset_1.columns
+
+
+"# Before checking gor NaNs let's check this"
+could_be_categorical={}
+i = 0
+while i < len(col_names1):
+    if(usd_applicant_dataset_1[col_names1[i]].nunique() > 1 and 
+       usd_applicant_dataset_1[col_names1[i]].nunique() < 30):
+        could_be_categorical[i] = col_names1[i]
+    else:
+        pass
+    i += 1 
+    
+"# Checking the datatypes of the could_be_categorical_cols" 
+for i in could_be_categorical.values():
+    print(i," ", usd_applicant_dataset_1[i].dtype)
+          
+def dependencycheck(x):
+    print(x.nunique()) 
+    print(x.value_counts())
+    print(pd.crosstab(x, target))
+
+
+"From the pandas profiling we have see a couple of columns are having more zeros"
+"Let's check them first"
+        
+dependencycheck('collections_12_mths_ex_med')
+dependencycheck('delinq_2yrs')
+dependencycheck('inq_last_6mths')
+dependencycheck('last_pymnt_amnt')
+dependencycheck('out_prncp')
+dependencycheck('tot_coll_amt')
+dependencycheck('pub_rec')
+dependencycheck('recoveries')
+dependencycheck('total_rec_late_fee')
+
+"#-------------------------------------------------------------------------------------------------"
+
+"# As a penultimate part of the data preprocessing let's remove the correlated columns"
+"# Let's remove the correlated columns"
+"# From the inferences drawn in pandas profiling let's remove the cols with hot correlations"
+
+'# There are 8 multicorellated columns in the dataset, 
+"""
+funded_amnt is highly correlated with loan_amnt (ρ = 0.99926) Rejected
+funded_amnt_inv is highly correlated with funded_amnt (ρ = 0.99848) Rejected
+installment is highly correlated with funded_amnt_inv (ρ = 0.94415) Rejected
+
+member_id is highly correlated with id (ρ = 0.99943) Rejected  ---- 
+^^^Id cols
+
+out_prncp_inv is highly correlated with out_prncp (ρ = 1) Rejected --- 
+^^^Same Column
+
+total_rec_prncp is highly correlated with total_pymnt_inv (ρ = 0.96861) Rejected
+total_pymnt_inv is highly correlated with total_pymnt (ρ = 0.99812) Rejected
+
+"""
+"# The above columns have correlation greater than 0.9"
+
+"Seperating numerical cols"
+usd_applicant_dataset_2_numerical_cols = usd_applicant_dataset_2.select_dtypes(include=[mp.number]) 
+"Col names of those columns"
+usd_applicant_dataset_2_numerical_cols_names = usd_applicant_dataset_2_numerical_cols.columns.tolist()
+"correlation matrix"
+corr = usd_applicant_dataset_2_numerical_cols.corr()
+
+hihgly_correlated_columns = []
+count = 1
+for i in list(corr.columns):
+    k = 0
+    while k < len(corr.index):
+        if((corr.iloc[k][i] > 0.5 or corr.iloc[k][i] < -0.5  ) and (corr.iloc[k][i] != 1)): 
+            print(count," ",i ," ", corr.index[k]," ",corr.iloc[k][i], "\n")
+            count +=1
+        else:
+            pass
+        if((corr.iloc[k][i] > 0.7 or corr.iloc[k][i] < -0.7) and (corr.iloc[k][i] != 1)):
+            hihgly_correlated_columns.append(i+" -- "+corr.index[k])
+        else:
+            pass
+        k += 1
+        
+print("Number of highly correlated columns", len(hihgly_correlated_columns))
+"# Though Strong classifiers like Random Forest algorimth are not affected by the multicolrelation"
+"64 pairs of columns have a good amount of correlation between them"
+"26 pairs have very high correlation"
+
+"# lets create a dataset with zero multi correlation"
+usd_applicant_dataset_3 = usd_applicant_dataset_2
+
+"removing all the multi-correlated cols"
+
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('funded_amnt', axis = 1)
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('funded_amnt_inv', axis = 1)
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('out_prncp', axis = 1)
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('total_pymnt_inv', axis = 1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('installment', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('total_rev_hi_lim', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('total_rec_prncp', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('collection_recovery_fee', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('loan_amnt', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('total_acc', axis =1)
+usd_applicant_dataset_3 =  usd_applicant_dataset_3.drop('total_pymnt', axis =1)
+
+
+"usd_applicant_dataset_3 doesnt have any correlated columns in it, it will be used for modeling the logistic regression model"
+
+"And from the bussiness point of view, emp-title, title, memeber_id, id are unnercessary columns"
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('emp_title', axis = 1)
+usd_applicant_dataset_3 = usd_applicant_dataset_3.drop('title', axis = 1)
+ 
+"Writing this dataset as clean_dataset"
+usd_applicant_dataset_2.to_csv('Clean_Dataset.csv')
+"PS this dataset is clean but it has a lot of correlations within"
+
+
+"As the last step let's check the correctness of the datatype of the columns"
+non_numeric_columns = {}
+i =0 
+while i < len(usd_applicant_dataset_3.columns):
+    if(usd_applicant_dataset_3.columns[i] in usd_applicant_dataset_2_numerical_cols_names):
+        pass
+    else:
+        non_numeric_columns[i] = usd_applicant_dataset_3.columns[i] 
+    i = i+1
+    
+print("Number of non numeric cols are", len(non_numeric_columns))
+"# 16 cols"
+
+"Correctly Encoding the datatype of each column"
+
+usd_applicant_dataset_3['emp_length'] = usd_applicant_dataset_3['emp_length'].map({'10+ years':10,
+                                                   '1 year' : 1,
+                                                   '2 years': 2,
+                                                   '3 years': 3,
+                                                   '4 years': 4,
+                                                   '5 years': 5,
+                                                   '6 years': 6,
+                                                   '7 years': 7,
+                                                   '8 years': 8,
+                                                   '9 years': 9,
+                                                   '< 1 year': 0,
+                                                   '0 years' :0})
+usd_applicant_dataset_3['emp_length'] = usd_applicant_dataset_3['emp_length'].astype('category')
+usd_applicant_dataset_3['emp_length'] = usd_applicant_dataset_3['emp_length'].cat.codes
+"Label encoding ordinal"    
+usd_applicant_dataset_3['grade'] = usd_applicant_dataset_3['grade'].astype('category')
+usd_applicant_dataset_3['grade'] = usd_applicant_dataset_3['grade'].cat.codes
+
+usd_applicant_dataset_3['sub_grade'] = usd_applicant_dataset_3['sub_grade'].astype('category')
+usd_applicant_dataset_3['sub_grade'] = usd_applicant_dataset_3['sub_grade'].cat.codes
+
+usd_applicant_dataset_3['term'] = usd_applicant_dataset_3['term'].astype('category')
+usd_applicant_dataset_3['term'] = usd_applicant_dataset_3['term'].cat.codes
+
+"Onehot encoding the nominal variables"
+usd_applicant_dataset_3 = pd.get_dummies(usd_applicant_dataset_3, columns = ['purpose'], prefix = 'purpose')
+
+usd_applicant_dataset_3_1 = usd_applicant_dataset_3.copy() 
+usd_applicant_dataset_3_1 = pd.get_dummies(usd_applicant_dataset_3_1, columns = ['home_ownership'], prefix = 'home_owner')
+
+usd_applicant_dataset_3_2 = usd_applicant_dataset_3_1.copy() 
+usd_applicant_dataset_3_2 = pd.get_dummies(usd_applicant_dataset_3_2, columns = ['verification_status'], prefix = 'verify')
+
+usd_applicant_dataset_3_3 = usd_applicant_dataset_3_2.copy()
+usd_applicant_dataset_3_3 = pd.get_dummies(usd_applicant_dataset_3_3, columns = ['application_type'], prefix = 'application')
+
+usd_applicant_dataset_3_4 = usd_applicant_dataset_3_3.copy()
+usd_applicant_dataset_3_4 = pd.get_dummies(usd_applicant_dataset_3_4, columns = ['initial_list_status'], prefix = 'split_status')
+
+usd_applicant_dataset_3_5 = usd_applicant_dataset_3_4.copy()
+usd_applicant_dataset_3_5 = pd.get_dummies(usd_applicant_dataset_3_5, columns = ['pymnt_plan'], prefix = 'payment_plan' )
+
+usd_applicant_dataset_3_5.info()
+usd_applicant_dataset_3_5.columns.tolist()
+
+"Since address, emp_title, title are redundant columns let's remove them"
+"At one point they are niminal variables which has to be onehotencoded"
+"But encoding them will lead to a huge dimensionality curse and the infomation value they bare is not worth it"
+
+usd_applicant_dataset_3_5 = usd_applicant_dataset_3_5.drop('addr_state', axis = 1)
+
+"Let's convert the time variable such that, it stays a number and it's unitwise details is also preserved between -1 and 1"
+"# Scaling last payment date"
+usd_applicant_dataset_3_5['last_pymnt_d'] = usd_applicant_dataset_3['last_pymnt_d'].astype('int64')
+max_a = usd_applicant_dataset_3_5['last_pymnt_d'].max()
+min_a = usd_applicant_dataset_3_5['last_pymnt_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_3_5['last_pymnt_d'] = (usd_applicant_dataset_3_5['last_pymnt_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+"# Scaling Next payment date"
+usd_applicant_dataset_3_5['next_pymnt_d'] = usd_applicant_dataset_3['next_pymnt_d'].astype('int64')
+max_a = usd_applicant_dataset_3_5['next_pymnt_d'].max()
+min_a = usd_applicant_dataset_3_5['next_pymnt_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_3_5['next_pymnt_d'] = (usd_applicant_dataset_3_5['next_pymnt_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"# Scaling last_credit_pull_date"
+usd_applicant_dataset_3_5['last_credit_pull_d'] = usd_applicant_dataset_3['last_credit_pull_d'].astype('int64')
+max_a = usd_applicant_dataset_3_5['last_credit_pull_d'].max()
+min_a = usd_applicant_dataset_3_5['last_credit_pull_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_3_5['last_credit_pull_d'] = (usd_applicant_dataset_3_5['last_credit_pull_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"# Scaling earliest cr line"
+usd_applicant_dataset_3_5['earliest_cr_line'] = usd_applicant_dataset_3['earliest_cr_line'].astype('int64')
+max_a = usd_applicant_dataset_3_5['earliest_cr_line'].max()
+min_a = usd_applicant_dataset_3_5['earliest_cr_line'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_3_5['earliest_cr_line'] = (usd_applicant_dataset_3_5['earliest_cr_line']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+"================================================================================================================================"
+"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+"********************************************************************************************************************************"
+"================================================================================================================================"
+
+
+"Label Encoding all the object cols in usd_applicant_dataset_2"
+"In usd_applicant_dataset_2 all the more than 45% NaN cols are removed"
+"High Multicoleniearity exists in this model"
+
+cols = usd_applicant_dataset_2.columns.tolist()
+non_numerics_2 ={}
+
+
+numeric_2 = usd_applicant_dataset_2.select_dtypes(include=[mp.number])
+non_numerics_2 = {}
+i =0
+while i < len(cols):
+    if(cols[i] in numeric_2.columns):
+        pass
+    else:
+        non_numerics_2[i] = cols[i]
+    i+=1
+    
+
+"Label encoding the ordinal"
+usd_applicant_dataset_2['emp_length'] = usd_applicant_dataset_2['emp_length'].map({'10+ years':10,
+                                                   '1 year' : 1,
+                                                   '2 years': 2,
+                                                   '3 years': 3,
+                                                   '4 years': 4,
+                                                   '5 years': 5,
+                                                   '6 years': 6,
+                                                   '7 years': 7,
+                                                   '8 years': 8,
+                                                   '9 years': 9,
+                                                   '< 1 year': 0,
+                                                   '0 years' :0})
+ 
+usd_applicant_dataset_2['emp_length'] = usd_applicant_dataset_2['emp_length'].astype('category')
+usd_applicant_dataset_2['emp_length'] = usd_applicant_dataset_2['emp_length'].cat.codes
+
+usd_applicant_dataset_2['grade'] = usd_applicant_dataset_2['grade'].astype('category')
+usd_applicant_dataset_2['grade'] = usd_applicant_dataset_2['grade'].cat.codes
+
+usd_applicant_dataset_2['sub_grade'] = usd_applicant_dataset_2['sub_grade'].astype('category')
+usd_applicant_dataset_2['sub_grade'] = usd_applicant_dataset_2['sub_grade'].cat.codes
+
+usd_applicant_dataset_2['term'] = usd_applicant_dataset_2['term'].astype('category')
+usd_applicant_dataset_2['term'] = usd_applicant_dataset_2['term'].cat.codes
+
+"Onehot encoding the nominal variables"
+usd_applicant_dataset_2 = pd.get_dummies(usd_applicant_dataset_2, columns = ['purpose'], prefix = 'purpose')
+
+usd_applicant_dataset_2_1 = usd_applicant_dataset_2.copy() 
+usd_applicant_dataset_2_1 = pd.get_dummies(usd_applicant_dataset_2, columns = ['home_ownership'], prefix = 'home_owner')
+
+usd_applicant_dataset_2_2 = usd_applicant_dataset_2_1.copy() 
+usd_applicant_dataset_2_2 = pd.get_dummies(usd_applicant_dataset_2_2, columns = ['verification_status'], prefix = 'verify')
+
+usd_applicant_dataset_2_3 = usd_applicant_dataset_2_2.copy()
+usd_applicant_dataset_2_3 = pd.get_dummies(usd_applicant_dataset_2_3, columns = ['application_type'], prefix = 'application')
+
+usd_applicant_dataset_2_4 = usd_applicant_dataset_2_3.copy()
+usd_applicant_dataset_2_4 = pd.get_dummies(usd_applicant_dataset_2_4, columns = ['initial_list_status'], prefix = 'split_status')
+
+usd_applicant_dataset_2_5 = usd_applicant_dataset_2_4.copy()
+usd_applicant_dataset_2_5 = pd.get_dummies(usd_applicant_dataset_2_5, columns = ['pymnt_plan'], prefix = 'payment_plan' )
+
+usd_applicant_dataset_2_5.info()
+usd_applicant_dataset_2_5.columns.tolist()
+
+"Since address, emp_title, title are redundant columns let's remove them"
+"At one point they are niminal variables which has to be onehotencoded"
+"But encoding them will lead to a huge dimensionality curse and the infomation value they bare is not worth it"
+
+usd_applicant_dataset_2_5 = usd_applicant_dataset_2_5.drop('emp_title', axis = 1)
+usd_applicant_dataset_2_5 = usd_applicant_dataset_2_5.drop('title', axis = 1)
+usd_applicant_dataset_2_5 = usd_applicant_dataset_2_5.drop('addr_state', axis = 1)
+
+
+"Let's convert the time variable such that, it stays a number and it's unitwise details to the data is also preserved"
+"Scaling las_payment_d"
+usd_applicant_dataset_2_5['last_pymnt_d'] = usd_applicant_dataset_2['last_pymnt_d'].astype('int64')
+max_a = usd_applicant_dataset_2_5['last_pymnt_d'].max()
+min_a = usd_applicant_dataset_2_5['last_pymnt_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_2_5['last_pymnt_d'] = (usd_applicant_dataset_2_5['last_pymnt_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Scaling next_pymnt_D"
+usd_applicant_dataset_2_5['next_pymnt_d'] = usd_applicant_dataset_2['next_pymnt_d'].astype('int64')
+max_a = usd_applicant_dataset_2_5['next_pymnt_d'].max()
+min_a = usd_applicant_dataset_2_5['next_pymnt_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_2_5['next_pymnt_d'] = (usd_applicant_dataset_2_5['next_pymnt_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"scaling last credit_pull _d"
+usd_applicant_dataset_2_5['last_credit_pull_d'] = usd_applicant_dataset_2['last_credit_pull_d'].astype('int64')
+max_a = usd_applicant_dataset_2_5['last_credit_pull_d'].max()
+min_a = usd_applicant_dataset_2_5['last_credit_pull_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_2_5['last_credit_pull_d'] = (usd_applicant_dataset_2_5['last_credit_pull_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"scaling earliest_cr_line"
+usd_applicant_dataset_2_5['earliest_cr_line'] = usd_applicant_dataset_2['earliest_cr_line'].astype('int64')
+max_a = usd_applicant_dataset_2_5['earliest_cr_line'].max()
+min_a = usd_applicant_dataset_2_5['earliest_cr_line'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_2_5['earliest_cr_line'] = (usd_applicant_dataset_2_5['earliest_cr_line']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+
+"-----------------------------------------------------------------------------------------------------"
+"Spliting the dataset for test and train"
+
+'With respcet to problem statment'
+'The test train split should be like this'
+'Dates from june 2015'
+usd_applicant_dataset_3_5['issue_d'] = pd.to_datetime(usd_applicant_dataset_3_5['issue_d'], format = '%b-%Y')
+
+
+X = pd.to_datetime("Jun-2015", format = '%b-%Y')
+
+"Checking for the correctness of the split"
+usd_applicant_dataset_3_5[usd_applicant_dataset_3_5['issue_d'] >= X]
+"^ Correct split"
+
+"Performimg the test train split"
+usd_applicant_dataset_test = usd_applicant_dataset_3_5[usd_applicant_dataset_3_5['issue_d'] >= X]
+usd_applicant_dataset_train = usd_applicant_dataset_3_5[usd_applicant_dataset_3_5['issue_d'] < X]
+
+
+"Since smote could be done only on numbers and not on datetimes"
+usd_applicant_dataset_train['issue_d'] = usd_applicant_dataset_train['issue_d'].astype('int64')
+max_a = usd_applicant_dataset_train['issue_d'].max()
+min_a = usd_applicant_dataset_train['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_train['issue_d'] = (usd_applicant_dataset_train['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Bring the test set also to the same scale"
+usd_applicant_dataset_test['issue_d'] = usd_applicant_dataset_test['issue_d'].astype('int64')
+max_a = usd_applicant_dataset_test['issue_d'].max()
+min_a = usd_applicant_dataset_test['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_test['issue_d'] = (usd_applicant_dataset_test['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+"Spling the dependent and independent variables in the train set"
+target = usd_applicant_dataset_train['default_ind']
+usd_applicant_dataset_train = usd_applicant_dataset_train.drop('default_ind', axis =1)
+
+"Spling the dependent and independent variables in the test set"
+target_1 = usd_applicant_dataset_test['default_ind']
+target_1.value_counts()
+"""
+future checking
+0    256680
+1       311
+Name: default_ind, dtype: int64
+
+^^ Now that's the trick of this split
+"""
+usd_applicant_dataset_test = usd_applicant_dataset_test.drop('default_ind', axis =1 )
+
+"======================================================================================================"
+"Spliting the usd_applicant_dataset_2"
+"P.S this dataset contains all the features excepts for the features with more than 45% nans"
+"======================================================================================================"
+
+usd_applicant_dataset_2_5['issue_d'] = pd.to_datetime(usd_applicant_dataset_2_5['issue_d'], format = '%b-%Y')
+
+X = pd.to_datetime("Jun-2015", format = '%b-%Y')
+
+"Checking for the correctness of the split"
+usd_applicant_dataset_2_5[usd_applicant_dataset_2_5['issue_d'] >= X]
+"^ Correct split"
+
+"Performimg the test train split"
+usd_applicant_dataset_test_2 = usd_applicant_dataset_2_5[usd_applicant_dataset_2_5['issue_d'] >= X]
+usd_applicant_dataset_train_2 = usd_applicant_dataset_2_5[usd_applicant_dataset_2_5['issue_d'] < X]
+
+"changing the dtype of issue date to int and scaling inorder to smote it"
+usd_applicant_dataset_train_2['issue_d'] = usd_applicant_dataset_train_2['issue_d'].astype('int64')
+max_a = usd_applicant_dataset_train_2['issue_d'].max()
+min_a = usd_applicant_dataset_train_2['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_train_2['issue_d'] = (usd_applicant_dataset_train_2['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Testset issue date scaling"
+usd_applicant_dataset_test_2['issue_d'] = usd_applicant_dataset_test_2['issue_d'].astype('int64')
+max_a = usd_applicant_dataset_test_2['issue_d'].max()
+min_a = usd_applicant_dataset_test_2['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_test_2['issue_d'] = (usd_applicant_dataset_test_2['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Spliting the dep and indepvars in the train set"
+target_2 = usd_applicant_dataset_train_2['default_ind']
+usd_applicant_dataset_train_2 = usd_applicant_dataset_train_2.drop('default_ind', axis =1)
+
+
+"Spliting the dep and indepvars in the test set"
+test_target_2 = usd_applicant_dataset_test_2['default_ind']
+usd_applicant_dataset_test_2 = usd_applicant_dataset_test_2.drop('default_ind', axis =1)
+
+
+"-----------------------------------------------------------------------------------------------------"
+
+"======================================================================================================"
+"Oversampling usd_applicant_dataset_3_5"
+"======================================================================================================"
+smt = SMOTE(kind = "regular")
+Upsampling = True
+if(Upsampling):
+    X_train, y_train = smt.fit_sample(usd_applicant_dataset_train, target )
+else:
+    pass
+
+"Dimensions before sampling"
+print("Before oversampling, the shape of the trainset predictors ",usd_applicant_dataset_train.shape )
+print("Before oversampling, the shape of the trainset dependent variable ",target.shape )
+    
+"Dimensions after sampling"
+print("After oversampling, the shape of the trainset predictors ", X_train.shape)
+print("After oversampling, the shape of the trainset dependent variable ", y_train.shape)
+
+"Let's change X_train and y_train to arrays because vectorization cut computational cost"
+"The train data from smote is already an array"
+
+usd_applicant_dataset_test = mp.array(usd_applicant_dataset_test)
+target_1 = mp.array(target_1)
+
+
+"======================================================================================================"
+"Oversampling usd_applicant_dataset_2_5"
+"======================================================================================================"
+"Ovesampling the minority class in usd_applicant_dataset_2_5"
+smt = SMOTE(kind = "regular")
+Upsampling = True
+if(Upsampling):
+    X_train_2, y_train_2 = smt.fit_sample(usd_applicant_dataset_train_2, target_2 )
+else:
+    pass
+
+"Dimensions before sampling "
+print("Before oversampling, the shape of the trainset predictors ",usd_applicant_dataset_train_2.shape )
+print("Before oversampling, the shape of the trainset dependent variable ",target_2.shape )
+    
+"Dimensions after sampling"
+print("After oversampling, the shape of the trainset predictors ", X_train_2.shape)
+print("After oversampling, the shape of the trainset dependent variable ", y_train_2.shape)
+
+"Let's change X_train_2 and y_train_2 to arrays because vectorization cut computational cost"
+"The oversampled data is already in a ?? Array format"
+
+usd_applicant_dataset_test_2 = mp.array(usd_applicant_dataset_test_2)
+test_target_2 = mp.array(test_target_2)
+
+"-----------------------------------------------------------------------------------------------------"
+
+
+"====================================================BLOCK DE MODEL VISUSALIZATION========================================================="
+"roc_auc classification visualiser"
+def Roc_visualizer(X,Y):
+    sns.set('talk', 'whitegrid', 'dark', font_scale=1.0, font='Ricty',
+        rc={"lines.linewidth": 2, 'grid.linestyle': '--'})
+    
+    fpr, tpr, missclassificcations = roc_curve(X, Y)
+    roc_auc = auc(fpr, tpr)
+    
+    lw = 2
+    plt.figure()
+    plt.plot(fpr, tpr, color='darkorange',
+             lw=lw, label='ROC curve (AUC = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC')
+    plt.legend(loc="lower right")
+    plt.show()
+
+"============================================================================================================"
+"Preliminery model building"
+"The reason for building this model is to check the correctness of imputation"
+"And other data preprocessing done on this dataaset"
+"Another reason is to extract feature importance from this dataset"
+"And build optimal models"
+
+rclf = RandomForestClassifier()
+rclf.fit(X_train,y_train)
+"""
+Out[80]: 
+RandomForestClassifier(bootstrap=True, class_weight=None, criterion='gini',
+            max_depth=None, max_features='auto', max_leaf_nodes=None,
+            min_impurity_decrease=0.0, min_impurity_split=None,
+            min_samples_leaf=1, min_samples_split=2,
+            min_weight_fraction_leaf=0.0, n_estimators=10, n_jobs=1,
+            oob_score=False, random_state=None, verbose=0,
+            warm_start=False)
+"""
+
+
+"-----------------------------------------------------------------------------------------------------"
+"PREDICTIONS"
+"Predictions from the random forest model"
+Predictions = rclf.predict(usd_applicant_dataset_test)
+"predicating the trainset of rclf usd_applicant_dataset_3_5"
+p = rclf.predict(X_train)
+
+
+"-----------------------------------------------------------------------------------------------------"
+"Model Evaluation"
+
+"Confusion-matrix"
+cm = confusion_matrix(target_1,Predictions)
+"""
+array([[253405,   3275],
+       [   161,    150]], dtype=int64)
+"""
+"Trainset confusion matrix"
+cmt = confusion_matrix(y_train,p)
+
+"accuracy score"
+rclf_accuracy = accuracy_score(target_1, Predictions)
+"accuracy on usd_applicant_Dataset_3_5 is 0.9866298819803028"
+
+"Accuracy on the trainset"
+rclf_accuracy_t = accuracy_score(y_train, p)
+"accuracy on trainset usd_applicant_Dataset_3_5 is 0.9996952002633759"
+
+"Since the train set prediction is 0.0003 units greater than test set preds"
+"Model is not overfitting"
+
+"---------------------------------------------------------------------------------------"
+"Precision and Recall"
+rclf_precision = precision_score(target_1, Predictions)
+"0.043795620437956206"
+"This number also syncs with the 1 classes result on the classification report"
+
+"---------------------------------------------------------------------------------------"
+rclf_recall = recall_score(target_1, Predictions)
+"0.5080385852090032"
+"This syncs with the 1 classes recall in the classification report"
+
+
+"Roc stats and auc"
+"---------------------------------------------------------------------------------------"
+fpr, tpr, missclassificcations = roc_curve(target_1, Predictions)
+roc_auc = auc(fpr, tpr)
+"0.8664172851253729"
+
+
+"---------------------------------------------------------------------------------------"
+"f1 of random forest dataset_3_5"
+rclf_f1_score = f1_score(target_1, Predictions)
+"0.7450980392156863 this number also syncs with the 1 classes results in the classification report"
+
+"---------------------------------------------------------------------------------------"
+"Claassification Report"
+rclf_classification_report =classification_report(target_1, Predictions)
+"""
+'    precision    recall  f1-score   support
+0       1.00      1.00      1.00    256680\n
+1       0.76      0.73      0.75       311\n
+total   1.00      1.00      1.00    256991\n'
+"""
+"==============================Classification visualizations================================================="
+
+"ROC curve of the trainset"
+Roc_visualizer( y_train, p)
+    
+"ROC curve of the testset"
+Roc_visualizer( target_1, Predictions)
+  
+
+"===================================================================================================="
+
+"Creating a logistic Regression model to find the varibale importance"
+lgst_clf = LogisticRegression(random_state = 1)
+lgst_clf.fit(X_train, y_train)
+"""
+LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,
+          intercept_scaling=1, max_iter=100, multi_class='ovr', n_jobs=1,
+          penalty='l2', random_state=1, solver='liblinear', tol=0.0001,
+          verbose=0, warm_start=False)
+"""
+
+"EVALUATION OF THE LOGISTIC REGRESSION MODEL"
+"Predictions from the logistic Regression model"
+Preds_lgst = lgst_clf.predict(usd_applicant_dataset_test)
+
+"Logistic_regresssion trainset_prediction"
+preds_t_lgst = lgst_clf.predict(X_train)
+    
+"Confusion matrix"
+cm_lgst =  confusion_matrix(target_1, Preds_lgst)
+"""
+array([[255483,   1197],
+       [    93,    218]], dtype=int64)
+"""
+"Accuracy score"
+lgst_accuracy = accuracy_score(target_1, Preds_lgst)
+"accuracy is 0.9949803689623372"
+
+"precision_Score"
+lgst_precision = precision_score(target_1, Preds_lgst)
+"the precision is 0.15406360424028268"
+
+"recall score"
+lgst_recall = recall_score(target_1, Preds_lgst)
+"The recall is 0.7009646302250804"
+
+"ROC stats of logistic Regression"
+fpr, tpr, missclassificcations = roc_curve(target_1, Preds_lgst)
+roc_auc_lgst = auc(fpr, tpr)
+"0.8481506180578418 is the units of area under the curve"
+
+
+"f1_score of the logistic regression model"
+lgst_f1_score = f1_score(target_1, Preds_lgst)
+"0.2526071842410197 is the f1 score"
+
+"Claassification Report of the logistic regression model"
+lgst_classification_report =classification_report(target_1, Preds_lgst)
+"""
+'             
+        precision    recall  f1-score   support\n
+ 0       1.00      1.00      1.00    256680
+ 1       0.15      0.70      0.25       311\n
+total    1.00      99      1.00    256991\n'
+"""
+"====================================================================================================="
+"Model's classification visualization"
+
+"ROC curve of the trainset"
+Roc_visualizer( y_train, preds_t_lgst)
+    
+"ROC curve of the testset"
+Roc_visualizer( target_1, Preds_lgst)
+
+
+"====================================================================================================="
+"Fitting the model for usd_applicant_dataset_2"
+"The one that is NaN free but with high muticoleniarity"
+"Looking forwards to draw importances from this model to support the model seclection of the previosu"
+"model"
+"Hope this metriculous strategy works :D"
+"Model fitting 1.0"
+"RandomForestModel"
+rclf_2 = RandomForestClassifier()
+rclf_2.fit(X_train_2, y_train_2)
+
+"Predicting the dataset usd_applicant_Dataset_2 high correlation dataset"
+Predictions_2 = rclf_2.predict(usd_applicant_dataset_test_2)
+
+"Predicting the trainset to check for over or underfitting"
+Predications_train = rclf_2.predict(X_train_2)
+
+"Model Evaluations"
+"Confusion matrix of usd_applicant_dataset_2_5"
+cm2 = confusion_matrix(test_target_2,Predictions_2)
+"""
+array([[248665,   8015],
+       [     7,    304]], dtype=int64)
+"""
+
+"accuracy score of usd_applicant_dataset_2"
+rclf2_accuracy = accuracy_score(test_target_2, Predictions_2)
+"0.9883069835130414 less than usd_applicant_dataaset_3_5's accuracy"
+
+"Precision"
+rclf2_precision = precision_score(test_target_2, Predictions_2)
+" 0.09132281553398058 is the precision of usd_applicant_dataset_2_5"
+
+"Recall"
+rclf2_recall = recall_score(test_target_2, Predictions_2)
+"0.9678456591639871 is the recall "
+"97% recall"
+
+"Roc stats and auc"
+fpr, tpr, missclassificcations = roc_curve(test_target_2, Predictions_2)
+roc_auc_rclf_2 = auc(fpr, tpr)
+"0.9780887170683579 units"
+
+
+rclf2_f1_score = f1_score(test_target_2, Predictions_2)
+"0.28998073217726394"
+
+"Claassification Report"
+rclf2_classification_report =classification_report(test_target_2, Predictions_2)
+"""
+'       precision recall    f1-score   support\n
+0       1.00      0.99      0.99       256680
+1       0.09      0.97      0.17       311\n
+total   1.00      0.99      0.99       256991\n'
+"""
+"=====================Visuals on this model================================================================"
+
+"ROC curve of the trainset"
+Roc_visualizer( y_train, Predications_train)
+    
+"ROC curve of the testset"
+Roc_visualizer( test_target_2,Predictions_2 )
+
+
+"-----------------------------------------------------------------------------------------------"
+
+"Randomforest Importance"
+"Let's get the randomforest importance form rclf_2 since it is giving a better recall"
+"Let's get the randomforest importnace from rclf since it has better accuracy and precision compared to rclf"
+"The idea is to consolidate the high importnace features of both the datasets and create a new one"
+"usd_applicant_dataset_4"
+
+
+"Since X_train_2 is an array it's col names are numbers and not the actual feature names"
+"Thus  setting the columns names from usd_applicant_Dataset_2_5 to X_train_2"
+X_train_2 = pd.DataFrame(X_train_2)
+X_train_2.columns = usd_applicant_dataset_2_5.loc[:, usd_applicant_dataset_2_5.columns != 'default_ind'].columns
+
+"FEATURE IMPORTANCE FROM USD_APPLICANT_DATASET_2_5"
+usd_applicant_dataset_2_feature_importances = pd.DataFrame(rclf_2.feature_importances_, index = X_train_2.columns,
+                                    columns=['importance']).sort_values('importance', ascending=False)
+
+"FEATURE IMPORTANCE FROM USD_APPLICANT_DATASET_3_5"
+columns = usd_applicant_dataset_3_5.loc[:, usd_applicant_dataset_3_5.columns!= 'default_ind'].columns
+usd_applicant_dataset_3_feature_importances = pd.DataFrame(rclf.feature_importances_, index = columns,
+                                    columns=['importance']).sort_values('importance', ascending=False)
+
+
+"IMPORTANT COLUMNS FROM USD_APPLICANT_DATASET_2_5"
+important_names_2_5 =usd_applicant_dataset_2_feature_importances[usd_applicant_dataset_2_feature_importances['importance']>0.0007].index.tolist()
+
+"IMPORTANT COLUMNS FROM USD_APPLICANT_DATASET_3_5"
+important_names_3_5 =usd_applicant_dataset_3_feature_importances[usd_applicant_dataset_3_feature_importances['importance']>0.001].index.tolist()
+
+"Number of important columns in usd_applicant_dataset_2_5"
+print("Number of important columns in usd_applicant_dataset_2_5", len(important_names_2_5))
+
+"Number of important columns in usd_applicant_dataset_2_5"
+print("Number of important columns in usd_applicant_dataset_3_5", len(important_names_3_5))
+
+
+common_columns = []
+distincts_in_3_5 = []
+for i in important_names_3_5:
+    if i in important_names_2_5:
+        common_columns.append(i)
+    else:
+        distincts_in_3_5.append(i)
+
+distincts_in_2_5 = []        
+for i in important_names_2_5:
+    if i not in important_names_3_5:
+        distincts_in_2_5.append(i)
+    else:
+        pass
+    
+print("Number if common columns are", len(common_columns)) 
+print("Number if distict columns in usd_applicant_dataset_2_5 are", len(distincts_in_2_5)) 
+print("Number if common columns in usd_applicant_dataset_2_5 are", len(distincts_in_3_5)) 
+   
+"Since the common columns exist in both the importances extrated they have proven their worth"
+"And the bussiness value of these columns are also pretty good"
+"Thus adding them to new dataset"  
+commons = usd_applicant_dataset_3_5.loc[:, common_columns]
+
+"Checking the significance of distincts_in_3_5"
+"all the columns have more than 0.004"
+
+"Checking the significance of distincts_in_2_5"
+"all the columns have more than 0.004"
+
+"We from the checking done on both the importance all the fetures have more than 0.003 importance"
+"if this strategy doesn't work let's try to add the features more than 0.005"
+
+dist_3 = usd_applicant_dataset_3_5.loc[:, distincts_in_3_5]
+dist_2 = usd_applicant_dataset_2_5.loc[:, distincts_in_2_5]
+
+"Creating the newdataset"
+"usd_applicant_dataset_4"
+usd_applicant_dataset_4 = pd.concat([commons,dist_3, dist_2], axis=1)
+
+
+"Checking for null values"
+usd_applicant_dataset_4.isnull().sum().sum()
+
+"Columns_names"
+usd_applicant_dataset_4.columns.tolist()
+
+"Adding the dependent variable to this dataset"
+usd_applicant_dataset_4['default_ind'] = usd_applicant_dataset_1['default_ind']
+
+"Encoding the datatypes"
+usd_applicant_dataset_4.info()
+
+"Shape of this dataset"
+print("Shape of this dataset is", usd_applicant_dataset_4.shape)
+
+
+"===================================================================PHASE 3=========================================================================="
+"========================== HAVING IDENTIFIED THE SALIENT FEATURES LET'S DRAW SOME BUSSINESS INSIGHTS FROM THE DATA=================================="
+"=======================================DETAILED EXPLORATORY DATA ANALYSIS USING USD_APPLICANT_DATASET_4============================================"
+"===================================================================VISUALIZATIONS=================================================================="
+
+
+"Year wise and month-wise issue of loan"
+
+usd_applicant_dataset_4['issue_d'] = pd.to_datetime(usd_applicant_dataset_4['issue_d'], format ="%b-%Y") 
+
+"Extracting year and month"
+usd_applicant_dataset_4['issue_year'] = usd_applicant_dataset_4['issue_d'].dt.year
+
+usd_applicant_dataset_4['loan_amnt']
+
+plt.figure(figsize=(12,8))
+sns.barplot('issue_year', 'loan_amnt', data=usd_applicant_dataset_4, palette='tab10')
+plt.title('Yearly Issuance of Loans ', fontsize=16)
+plt.xlabel('Year', fontsize=14)
+plt.ylabel('Average loan amount issued', fontsize=14)
+
+"Every year the average amount of loans kept imcrementing years"
+
+
+"================================================================================================================================================="
+
+"Dependecy checking the of initial_list_status onehot enndoded as the following"
+"split_Status_f fractional loan borrower"
+"split_Status_w whole loan borrower"
+dependencycheck(usd_applicant_dataset_4['split_status_f'])
+dependencycheck(usd_applicant_dataset_4['split_status_w'])
+"From the above analysis"
+"it seems like tht fraction amount borrowers seem to repay the loan compared to their counterparts"
+
+"Check the same visually"
+usd_applicant_dataset_4['split_status_f'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                    title = "Borrowers vs split_status_f")
+    
+"Form the above visual we can see that in the intial_list_status, fractional vs whole loan borrowers are almost equal"
+'# Plotting the dependency of repaying the loan with respect to split_status_w'
+dependency_on_frac_loan = pd.crosstab(usd_applicant_dataset_4['split_status_f'],usd_applicant_dataset_4['default_ind'])
+
+"# to find the percentage under each type"
+percentof_dependency_on_frac_loan = dependency_on_frac_loan.div(dependency_on_frac_loan.sum(1).astype('float'), axis = 0)
+
+"Ploting the percentage wise depencency"
+plt.figure(figsize=(20,20))
+percentof_dependency_on_frac_loan.plot(grid = True, stacked = True, kind = "bar", color = ['steelblue','orange'], title ="Intial_list_status Vs Potential Borrower statistics", figsize = (10,8))
+plt.xlabel('Initial_list_Status')
+plt.ylabel('Borrowers Potential')
+
+"From the above inferences we can say that chances of a customer repaying the loan is high if he is a factional loan borrower"
+
+"=============================================================================================================================="
+
+"Checking the dependency of home_ownership, which is one hot encoded as"
+"'home_owner_MORTGAGE',
+ 'home_owner_RENT'"
+
+"For the analysis purpose let's add thee home owner and remove it form the clean dataset"
+usd_applicant_dataset_4['home_ownership'] = usd_applicant_dataset_1['home_ownership']
+
+"borrowers mapped according to Home ownership "
+usd_applicant_dataset_4['home_ownership'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                    title = "Borrowers vs Home_ownership")
+    
+dependency_on_home_ownership = pd.crosstab(usd_applicant_dataset_4['home_ownership'],usd_applicant_dataset_4['default_ind'])
+
+"# to find the percentage under each type"
+percentof_dependency_on_home_ownership = dependency_on_home_ownership.div(dependency_on_home_ownership.sum(1).astype('float'), axis = 0)
+
+"Ploting the percentage wise depencency"
+
+percentof_dependency_on_home_ownership.plot(grid = True, stacked = True, kind = "bar", color = ['steelblue','orange'], title ="Home_ownership Vs Potential Borrower statistics", figsize = (10,8))
+"From the above plot we can see rent class has a substantial amount of replayers"
+"Though classes like none and other should good statistics the amount of borrowers under those classes are on negligible number"
+"compared to Rent and mortage classes"
+
+"From the above inference the rent class borrowers have a slighly higher chance of replaying the loan compared to others"
+
+"droping home_ownership"
+
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('home_ownership', axis =1)
+
+"================================================================================================================================================"
+"EDA on purpose"
+
+usd_applicant_dataset_4['purpose'] = usd_applicant_dataset_1['purpose']
+
+"Mapping the borrowers with respect to the purpose"
+plt.figure(figsize=(18,18))
+usd_applicant_dataset_4['purpose'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Purpose")
+"From the above pie chart we can see that debt_considation, credit_card, home_importovement and other are the major purposes"
+
+dependency_on_purpose = pd.crosstab(usd_applicant_dataset_4['purpose'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_purpose = dependency_on_purpose.div(dependency_on_purpose.sum(1).astype('float'), axis = 0)
+
+percentof_dependency_on_purpose.plot(grid = True, stacked = True, kind = "bar", color = ['steelblue','orange'], title ="Purpose Vs Potential Borrower statistics", figsize = (10,8))
+
+"From the above inference we can see that purpose - debt_consolidation, credit_card, home_improvment have comparitively higher likeehood of repaying the loan"
+"compared to other purposes"
+
+"dropping the purpose column"
+
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('purpose', axis =1)
+"================================================================================================================================================"
+"Inferences from verification status"
+
+usd_applicant_dataset_4['verification_status'] = usd_applicant_dataset_1['verification_status']
+
+"Mpping the borrowers with respect to their verifications status"
+
+plt.figure(figsize=(8,8))
+usd_applicant_dataset_4['verification_status'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Verification_status")
+"From the above pie chart we can see that all the classes are equally distributed accross the borrowers"
+
+dependency_on_verification = pd.crosstab(usd_applicant_dataset_4['verification_status'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_verification = dependency_on_verification.div(dependency_on_verification.sum(1).astype('float'), axis = 0)
+
+percentof_dependency_on_verification.plot(grid = True, stacked = True, kind = "bar", color = ['steelblue','orange'], title ="Verification_Status Vs Potential Borrower statistics", figsize = (10,8))
+
+"From the above inference the borrowers from verified class pay comparitively better than their counterparts"
+
+"Droping verification status"
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('verification_status', axis =1)
+
+
+"================================================================================================================================================"
+
+"Checking the dependency on the grade of the borrower"
+
+"Mapping the customers with respect to their grade"
+plt.figure(figsize=(8,8))
+usd_applicant_dataset_4['grade'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Grade")
+"Borrowers belonging to grade 6 is really negligible"
+"Grade 1 and 2 maps more than 50% of the borrowers"
+
+dependency_on_grade = pd.crosstab(usd_applicant_dataset_4['grade'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_grade = dependency_on_grade.div(dependency_on_grade.sum(1).astype('float'), axis = 0)
+
+percentof_dependency_on_grade.plot(grid = True, stacked = True, kind = "bar", color = ['steelblue','orange'], title ="Verification_Status Vs Potential Borrower statistics", figsize = (10,8))
+
+"As the grade increases the number of potential customers increase"
+"If the grade is more is more than 3 is a likely high probablity for a potential customer"
+
+"================================================================================================================================================"
+
+"Checking the dependency on the emp_length of the borrower"
+
+"Mapping the emp_length of the borrower"
+plt.figure(figsize=(8,8))
+usd_applicant_dataset_4['emp_length'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Employement_length")
+
+"The employees with more than 10 years of experience accounts to more than 37.99% of the borrowers"
+"Other classes are almost equally distributed"
+
+dependency_on_emp_length = pd.crosstab(usd_applicant_dataset_4['emp_length'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_emp_length = dependency_on_emp_length.div(dependency_on_emp_length.sum(1).astype('float'), axis = 0)
+
+'# now stack and reset'
+stacked = percentof_dependency_on_emp_length.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+sns.barplot(x=stacked.emp_length, y=stacked.value, hue=stacked.default_ind)
+ 
+"From the above visual we can infere that emp_length 6 has a good number of repayers"
+"But we should also note that emp_length 10 has more than 38% of the customers in it"
+"Thus take this into consideration"
+"emp_length 10 has a good chance of a potential repayer"
+"================================================================================================================================================"
+
+"Checking the dependency of the term"
+plt.figure(figsize=(8,8))
+usd_applicant_dataset_4['term'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Employement_length")
+"70% of the customers belong to the 36months term"
+
+dependency_on_term = pd.crosstab(usd_applicant_dataset_4['term'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_term = dependency_on_term.div(dependency_on_term.sum(1).astype('float'), axis =0)
+
+'# now stack and reset'
+stacked = percentof_dependency_on_term.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+sns.barplot(x=stacked.term, y=stacked.value, hue=stacked.default_ind)
+
+
+"From the above inference drawn, customers in the term of 60 months are more likely to replay the loans"
+
+"================================================================================================================================================"
+
+"Dependecy checking the collection_reccovery_fee"
+dependencycheck(usd_applicant_dataset_4['collection_recovery_fee'])
+
+pd.crosstab(usd_applicant_dataset_4['collection_recovery_fee'], usd_applicant_dataset_4['default_ind'])
+pd.crosstab(usd_applicant_dataset_4[usd_applicant_dataset_4['collection_recovery_fee'] > 0]['collection_recovery_fee'], usd_applicant_dataset_4['default_ind'])
+
+"From the above results we can infer that if the collection recovery fee is > 0 then they all pay the loan"
+
+"================================================================================================================================================"
+
+"Dependency of total_pymnt"
+dependencycheck(usd_applicant_dataset_4['total_pymnt'])
+
+pd.crosstab(usd_applicant_dataset_4[usd_applicant_dataset_4['total_pymnt']>46200]['total_pymnt'], usd_applicant_dataset_4['default_ind'])
+
+"From the above we can infer a potential repayer's total_pymnt will be less than 46200"
+
+"================================================================================================================================================"
+
+"===========================================================Feature Enginnering=================================================================="
+
+"Anlysis based on income, since it's one amoung the key decider in the case of loan repayment"
+usd_applicant_dataset_4['annual_inc'].describe()
+
+"Make 3 splits based on income"
+"low income if the income is less than or equal to 100,000"
+"Moderate income if the income is greater than 100,000 or and lower than or equal to 200,000"
+"Hight income if the income is more than 200,000"
+
+conditions = [(usd_applicant_dataset_4['annual_inc'] <= 100000),
+              (usd_applicant_dataset_4['annual_inc'] > 100000) & (usd_applicant_dataset_4['annual_inc'] < 200000), 
+              (usd_applicant_dataset_4['annual_inc'] >= 200000)]
+
+choices = ["low", "medium","high"]
+              
+usd_applicant_dataset_4['income_status'] = mp.select(conditions, choices, default = 'none')
+
+"Mapping the borrowers based on their income_status"
+usd_applicant_dataset_4['income_status'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Income Status")
+
+"As we can see from this visual 82% of the borrowers are in the low income status"
+"15.5 and 2.2 in medium and high classes respectively"
+
+"Dependency with respect to income_status"
+dependency_on_income_status = pd.crosstab(usd_applicant_dataset_4['income_status'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_income_status = dependency_on_income_status.div(dependency_on_income_status.sum(1).astype('float'), axis =0)
+
+'# now stack and reset'
+stacked = percentof_dependency_on_income_status.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+sns.barplot(x=stacked.income_status, y=stacked.value, hue=stacked.default_ind)
+plt.title('Income_Status vs Frequency ', fontsize=12)
+plt.xlabel('Income_Status', fontsize=10)
+plt.ylabel('Frequency', fontsize=10)
+
+"Summary"
+
+"A person with high income is more likely to repay the loan"
+
+"================================================================================================================================================"
+
+"Another key factor that determines the loan repayment is int_rate"
+conditions = [(usd_applicant_dataset_4['int_rate']< 8 ),
+              (usd_applicant_dataset_4['int_rate']>= 8) & (usd_applicant_dataset_4['int_rate']<15),
+              (usd_applicant_dataset_4['int_rate'] >= 15)]
+
+choices = ["low","medium","high"]
+
+usd_applicant_dataset_4['interest_status'] = mp.select(conditions,choices, default = "None")
+
+"Mapping the borrowers based on their intrest_status"
+usd_applicant_dataset_4['interest_status'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs Interest_Staus")
+
+"As we can see from this visual 82% of the borrowers are in the low interest status"
+"15.5 and 2.2 in medium and high classes respectively"
+
+"Dependency with respect to in_status"
+dependency_on_intrest_status = pd.crosstab(usd_applicant_dataset_4['interest_status'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_intrest_status = dependency_on_intrest_status.div(dependency_on_intrest_status.sum(1).astype('float'), axis =0)
+
+'# now stack and reset'
+stacked = percentof_dependency_on_intrest_status.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+sns.barplot(x=stacked.interest_status, y=stacked.value, hue=stacked.default_ind)
+plt.title('Interest_Status vs Frequency ', fontsize=12)
+plt.xlabel('Interest_status', fontsize=10)
+plt.ylabel('Frequency', fontsize=10)
+
+"A person with low interest is more likely to replay the loan"
+
+"================================================================================================================================================"
+"One more key factor that affects the repayment is loan_amnt = LOAN AMOUNT"
+"Bining the loan amount into high low and medium category"
+
+conditions = [(usd_applicant_dataset_4['loan_amnt']< 8000 ),
+              (usd_applicant_dataset_4['loan_amnt']>= 8000) & (usd_applicant_dataset_4['loan_amnt']<20000),
+              (usd_applicant_dataset_4['loan_amnt'] >= 20000)]
+
+choices = ["low","medium","high"]
+
+usd_applicant_dataset_4['loan_amnt_status'] = mp.select(conditions,choices, default = "None")
+
+usd_applicant_dataset_4['loan_amnt_status'].value_counts().plot.pie(autopct = "%3.5f%%",
+                                                                   fontsize = 12,
+                                                                    wedgeprops = {
+                                                                            "linewidth" : 1.1,
+                                                                            "edgecolor" : "w"},
+                                                                            title = "Borrowers Vs loan_amnt_status")
+
+"Dependency with respect to loan_amnt_status"
+dependency_on_loan_amnt_status = pd.crosstab(usd_applicant_dataset_4['loan_amnt_status'],usd_applicant_dataset_4['default_ind'])
+
+percentof_dependency_on_loan_amnt_status = dependency_on_loan_amnt_status.div(dependency_on_loan_amnt_status.sum(1).astype('float'), axis =0)
+
+'# now stack and reset'
+stacked = percentof_dependency_on_loan_amnt_status.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+sns.barplot(x=stacked.loan_amnt_status, y=stacked.value, hue=stacked.default_ind)
+plt.title('loan_amnt_status vs Frequency ', fontsize=12)
+plt.xlabel('loan_amnt_status', fontsize=10)
+plt.ylabel('Frequency', fontsize=10)
+
+"If the loan_amount_status is low there is a slighly high chance of the customer reaying the loan"
+
+"=========================================================================================================================================="
+"From all the inferences drawn during visualizations let's create a feature call potential borrower"
+
+conditions = [((usd_applicant_dataset_4['split_status_f'] == 1) &
+             ((usd_applicant_dataset_4['purpose_debt_consolidation'] ==1) | (usd_applicant_dataset_4['purpose_credit_card']==1)) &
+             (usd_applicant_dataset_4['verify_Verified']==1))|
+             ((usd_applicant_dataset_4['grade']>3)&
+             (usd_applicant_dataset_4['emp_length']>9)&
+             (usd_applicant_dataset_4['term']==1))|
+             ((usd_applicant_dataset_4['collection_recovery_fee']>0)&
+             (usd_applicant_dataset_4['total_pymnt']<46200))|
+             ((usd_applicant_dataset_4['income_status']!= "low")&
+             (usd_applicant_dataset_4['interest_status'] != "high")&
+             (usd_applicant_dataset_4['loan_amnt_status'] != "high"))]
+
+choices = [1]
+
+usd_applicant_dataset_4['potential_borrower'] = mp.select(conditions, choices, default = 0)
+
+"================================================================================================================================================"
+
+"Creating non potential borrowers"
+conditions =[((usd_applicant_dataset_4['interest_status'] == "high")&
+             (usd_applicant_dataset_4['income_status'] == "low")&
+             (usd_applicant_dataset_4['loan_amnt_status'] != "high"))|
+             ((usd_applicant_dataset_4['grade']<=3)&
+             (usd_applicant_dataset_4['emp_length']<=5))|
+             (((usd_applicant_dataset_4['verify_Not Verified'] ==1) | (usd_applicant_dataset_4['verify_Source Verified']==1))&
+             (usd_applicant_dataset_4['home_owner_MORTGAGE']==1))|
+             ((usd_applicant_dataset_4['collection_recovery_fee']==0)&
+             (usd_applicant_dataset_4['total_pymnt']>46200))]
+
+choices =[1]
+
+usd_applicant_dataset_4['non_potential_borrower'] = mp.select(conditions, choices, default = 0)
+
+"===================================================================================================================================================="
+"======================================================================PHASE 5======================================================================="
+"==============================================MODEL BUILDING AND ITERATIONS FOR BETTER PERFORMANCE & MODEL EVALUATION==============================="
+
+"usd_applicant_dataset_4 stats after feature engineering"
+
+"Shape of the dataset"
+print("Dimensions of the dataset" ,usd_applicant_dataset_4.shape)
+
+"Datatypes of the columns"
+usd_applicant_dataset_4.info()
+
+"Converting the ordinal feature engineering columns using cat.codes"
+"label_encoding"
+
+usd_applicant_dataset_4['loan_amnt_status'] = usd_applicant_dataset_4['loan_amnt_status'].astype('category')
+usd_applicant_dataset_4['loan_amnt_status'] = usd_applicant_dataset_4['loan_amnt_status'].cat.codes
+
+usd_applicant_dataset_4['interest_status'] = usd_applicant_dataset_4['interest_status'].astype('category')
+usd_applicant_dataset_4['interest_status'] = usd_applicant_dataset_4['interest_status'].cat.codes
+
+usd_applicant_dataset_4['income_status'] = usd_applicant_dataset_4['income_status'].astype('category')
+usd_applicant_dataset_4['income_status'] = usd_applicant_dataset_4['income_status'].cat.codes
+
+"Spliting the dataset"
+
+X = pd.to_datetime("Jun-2015", format = '%b-%Y')
+
+usd_applicant_dataset_4['issue_d'] = pd.to_datetime(usd_applicant_dataset_4['issue_d'], format = '%b-%Y')
+
+"Checking for the correctness of the split"
+usd_applicant_dataset_3[usd_applicant_dataset_3['issue_d'] >= X]
+"^ Correct split"
+
+"Performimg the test train split"
+usd_applicant_dataset_4_test = usd_applicant_dataset_4[usd_applicant_dataset_4['issue_d'] >= X]
+usd_applicant_dataset_4_train = usd_applicant_dataset_4[usd_applicant_dataset_4['issue_d'] < X]
+
+"Scaling issue date"
+usd_applicant_dataset_4_test['issue_d'] = pd.to_datetime(usd_applicant_dataset_4_test['issue_d']).astype('int64')
+max_a = usd_applicant_dataset_4_test['issue_d'].max()
+min_a = usd_applicant_dataset_4_test['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_4_test['issue_d'] = (usd_applicant_dataset_4_test['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+usd_applicant_dataset_4_train['issue_d'] = pd.to_datetime(usd_applicant_dataset_4_train['issue_d']).astype('int64')
+max_a = usd_applicant_dataset_4_train['issue_d'].max()
+min_a = usd_applicant_dataset_4_train['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_4_train['issue_d'] = (usd_applicant_dataset_4_train['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Further spliting the datasets into dep and indepvars"
+
+target_4 = usd_applicant_dataset_4_train['default_ind']
+usd_applicant_dataset_4_train =usd_applicant_dataset_4_train.drop('default_ind', axis =1)
+
+test_target_4 = usd_applicant_dataset_4_test['default_ind']
+usd_applicant_dataset_4_test = usd_applicant_dataset_4_test.drop('default_ind', axis =1)
+
+
+"Oversampling the dataset"
+smt = SMOTE(kind = "regular")
+Upsampling = True
+if(Upsampling):
+    X_train_4, y_train_4 = smt.fit_sample(usd_applicant_dataset_4_train, target_4 )
+else:
+    pass
+
+
+"Dimensions before sampling "
+print("Before oversampling, the shape of the trainset predictors ",usd_applicant_dataset_4_train.shape )
+print("Before oversampling, the shape of the trainset dependent variable ",target_4.shape )
+    
+"Dimensions after sampling"
+print("After oversampling, the shape of the trainset predictors ", X_train_4.shape)
+print("After oversampling, the shape of the trainset dependent variable ", y_train_4.shape)
+
+"Let's change X_train_2 and y_train_2 to arrays because vectorization cut computational cost"
+"The oversampled data is already in a ?? Array format"
+
+usd_applicant_dataset_4_test = mp.array(usd_applicant_dataset_4_test)
+test_target_4 = mp.array(test_target_4)
+
+"Modeling the dataset"
+rclf_4 = RandomForestClassifier()
+rclf_4.fit(X_train_4, y_train_4)
+
+"Predictions"
+Predictions_4 = rclf_4.predict(usd_applicant_dataset_4_test)
+
+"Checking the model for generalization"
+Preds_4_genz = rclf_4.predict(X_train_4)
+
+parameter_details = rclf_4.get_params(deep = True)
+
+"Rclf_4 evaltion"
+cm_4 = confusion_matrix(test_target_4, Predictions_4) 
+"""
+array([[256431,    249],
+       [    10,    301]], dtype=int64)
+"""
+"Checking for overfit or underfit"
+cm_genz_4 = confusion_matrix( y_train_4, Preds_4_genz)  
+
+"Well!! that Seems warm :D :D :D"
+"Accuracy"
+rclf_4_accuracy = accuracy_score(test_target_4,Predictions_4)
+"0.9989921826056165"
+"Accuracy on the train set itself"
+train_set_sccuracy_rclf_4 = accuracy_score(y_train_4,Preds_4_genz)
+"0.9999719620420316"
+
+"No overfitting or underfitting"
+
+"------------------------------------------------------------------------------------------------------------------------------"
+
+"precision"
+rclf_4_precision = precision_score(test_target_4,Predictions_4)
+"0.5472727272727272"
+
+"recall"
+rclf_4_recall = recall_score(test_target_4, Predictions_4)
+"0.9678456591639871"
+
+
+fpr, tpr, missclassificcations = roc_curve(test_target_4, Predictions_4)
+roc_auc_rf4 = auc(fpr, tpr)
+"0.983437789843798"
+
+"f1-score"
+rclf4_f1_score = f1_score(test_target_4,Predictions_4)
+" 0.6991869918699186"
+
+"classification_report"
+rclf_4_clf_rpt = classification_report(test_target_4, Predictions_4)
+"""
+'            precision recall   f1-score support         
+ 0           1.00      1.00      1.00    256680
+ 1           0.55      0.97      0.70      311
+total        1.00      1.00      1.00    256991
+
+"""
+
+
+
+"step 1"
+"Checking the feature importance of the feature engineering done"
+"If the columns doesn't perform good"
+"They can be removed"
+
+"A model was built with all the feature engineered features using Random forest classsifier"
+"Which produced following results"
+"accuracy = 0.9877544349802133"
+"recall = 0.97"
+"precision = 0.09"
+"The model's precision is really bad"
+" After Checking the importance of the feature engineered features"
+cols = usd_applicant_dataset_4.loc[:, usd_applicant_dataset_4.columns!= 'default_ind'].columns.tolist()
+
+usd_applicant_dataset_4_feature_importances = pd.DataFrame(rclf_4.feature_importances_, index = cols,
+                                    columns=['importance']).sort_values('importance', ascending=False)
+
+"The features loan_status , income_status and non_potential_borrower are having very low importnace value"
+"Thus let's remove them"
+
+"On the other hand potential_borrower, issue_year and interest_status have a really high iportance"
+
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('potential_borrower', axis =1) 
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('income_status', axis =1) 
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('interest_status', axis =1) 
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('loan_amnt_status', axis =1) 
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('non_potential_borrower', axis =1) 
+usd_applicant_dataset_4 = usd_applicant_dataset_4.drop('issue_year', axis =1) 
+
+"Drop issue year because it doesn't carry any domain level predictive value"
+"After sereral itereations and score checks"
+"It's found that the feature potential_borrower drives the model towards the 1 class, and increasing the FN"
+"Thus removing it inspite of it being a strong feature under importance"
+
+
+print("Dimensions of the upgaraded dataset", usd_applicant_dataset_4.shape)
+
+"=========================================================================================================================================="
+"Spliting the dataset"
+
+X = pd.to_datetime("Jun-2015", format = '%b-%Y')
+
+usd_applicant_dataset_4['issue_d'] = pd.to_datetime(usd_applicant_dataset_4['issue_d'], format = '%b-%Y')
+
+"Checking for the correctness of the split"
+usd_applicant_dataset_3[usd_applicant_dataset_3['issue_d'] >= X]
+"^ Correct split"
+
+"Performimg the test train split"
+usd_applicant_dataset_4_test = usd_applicant_dataset_4[usd_applicant_dataset_4['issue_d'] >= X]
+usd_applicant_dataset_4_train = usd_applicant_dataset_4[usd_applicant_dataset_4['issue_d'] < X]
+
+"Scaling issue date"
+usd_applicant_dataset_4_test['issue_d'] = pd.to_datetime(usd_applicant_dataset_4_test['issue_d']).astype('int64')
+max_a = usd_applicant_dataset_4_test['issue_d'].max()
+min_a = usd_applicant_dataset_4_test['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_4_test['issue_d'] = (usd_applicant_dataset_4_test['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+usd_applicant_dataset_4_train['issue_d'] = pd.to_datetime(usd_applicant_dataset_4_train['issue_d']).astype('int64')
+max_a = usd_applicant_dataset_4_train['issue_d'].max()
+min_a = usd_applicant_dataset_4_train['issue_d'].min()
+min_norm = -1
+max_norm =1
+usd_applicant_dataset_4_train['issue_d'] = (usd_applicant_dataset_4_train['issue_d']- min_a) *(max_norm - min_norm) / (max_a-min_a) + min_norm
+
+
+"Further spliting the datasets into dep and indepvars"
+
+target_4 = usd_applicant_dataset_4_train['default_ind']
+usd_applicant_dataset_4_train =usd_applicant_dataset_4_train.drop('default_ind', axis =1)
+
+test_target_4 = usd_applicant_dataset_4_test['default_ind']
+usd_applicant_dataset_4_test = usd_applicant_dataset_4_test.drop('default_ind', axis =1)
+
+
+"Oversampling the dataset"
+smt = SMOTE(kind = "regular")
+Upsampling = True
+if(Upsampling):
+    X_train_4, y_train_4 = smt.fit_sample(usd_applicant_dataset_4_train, target_4 )
+else:
+    pass
+
+
+"Dimensions before sampling "
+print("Before oversampling, the shape of the trainset predictors ",usd_applicant_dataset_4_train.shape )
+print("Before oversampling, the shape of the trainset dependent variable ",target_4.shape )
+    
+"Dimensions after sampling"
+print("After oversampling, the shape of the trainset predictors ", X_train_4.shape)
+print("After oversampling, the shape of the trainset dependent variable ", y_train_4.shape)
+
+"Let's change X_train_2 and y_train_2 to arrays because vectorization cut computational cost"
+"The oversampled data is already in a ?? Array format"
+
+usd_applicant_dataset_4_test = mp.array(usd_applicant_dataset_4_test)
+test_target_4 = mp.array(test_target_4)
+
+"=========================================================================================================================================="
+"Modeling the dataset"
+rclf_4 = RandomForestClassifier()
+rclf_4.fit(X_train_4, y_train_4)
+
+"Predictions"
+Predictions_4 = rclf_4.predict(usd_applicant_dataset_4_test)
+
+"Checking the model for generalization"
+Preds_4_genz = rclf_4.predict(X_train_4)
+
+parameter_details = rclf_4.get_params(deep = True)
+
+"Rclf_4 evaltion"
+cm_4 = confusion_matrix(test_target_4, Predictions_4) 
+"""
+array([[256431,    249],
+       [    10,    301]], dtype=int64)
+"""
+"Checking for overfit or underfit"
+cm_genz_4 = confusion_matrix( y_train_4, Preds_4_genz)  
+
+"Well!! that Seems warm :D :D :D"
+"Accuracy"
+rclf_4_accuracy = accuracy_score(test_target_4,Predictions_4)
+"0.9966885999898829"
+"Accuracy on the train set itself"
+train_set_sccuracy_rclf_4 = accuracy_score(y_train_4,Preds_4_genz)
+"0.9999719620420316"
+
+"No overfitting or underfitting"
+
+"------------------------------------------------------------------------------------------------------------------------------"
+
+"precision"
+rclf_4_precision = precision_score(test_target_4,Predictions_4)
+"0.5472727272727272"
+
+"recall"
+rclf_4_recall = recall_score(test_target_4, Predictions_4)
+"0.9678456591639871"
+
+
+fpr, tpr, missclassificcations = roc_curve(test_target_4, Predictions_4)
+roc_auc_rf4 = auc(fpr, tpr)
+"0.983437789843798"
+
+"f1-score"
+rclf4_f1_score = f1_score(test_target_4,Predictions_4)
+" 0.6991869918699186"
+
+"classification_report"
+rclf_4_clf_rpt = classification_report(test_target_4, Predictions_4)
+"""
+'            precision recall   f1-score support         
+ 0           1.00      1.00      1.00    256680
+ 1           0.55      0.97      0.70      311
+total        1.00      1.00      1.00    256991
+
+"""
+
+"The above dataset usd_applicant_dataset_4 is the dataset with all important featuers"
+"Let's build all the models on this dataset"
+
+"===========================================================MODEL VISUALIZATION================================================================="
+
+"Visualizing the trainset ROC curve"
+Roc_visualizer(y_train_4, Preds_4_genz)
+
+"Visualizing the testset ROC curve"
+Roc_visualizer(test_target_4, Predictions_4)
+
+"Since the ROC of the trainset is slightly higher than the test set"
+"It refutes both Underfitting and overfitting conditons"
+
+"Visualization summary"
+"========The orange line is the ROC curve"
+"========The area under that curve contains all right classifications"
+"========X= False Positive Rate"
+"========Y= True Positive Rate"
+
+"===========================================================MODEL BUILDING ================================================================="
+"The reason for selecting the model is, thou the RandomForest Classifier is giving differnt results every time it's run"
+"Which is it's languagae bais"
+"This dataset gives great Recall everytime"
+"Which is a premium score in the BFSI domain"
+"And the roc-auc is also 98%"
+
+"Building outher models to check the best model"
+"======================================================LOGISTIC REGRESSION MODEL=========================================================="
+lgst_clf_2 = LogisticRegression()
+lgst_clf_2.fit(X_train_4, y_train_4)
+
+"Predictions"
+lgst_preds = lgst_clf_2.predict(usd_applicant_dataset_4_test)
+
+"Predicting trainset"
+lgst_t_preds = lgst_clf_2.predict(X_train_4)
+
+"Confusion matrix"
+lgst2_cm = confusion_matrix(test_target_4,lgst_preds)
+
+"accuracy-score"
+lgst2_accuracy = accuracy_score(test_target_4,lgst_preds)
+"0.9985213489966575"
+
+"precision score"
+lgst2_4_precision = precision_score(test_target_4,lgst_preds)
+"0.4389380530973451"
+
+"recall score"
+lgst2_4_recall = recall_score(test_target_4,lgst_preds)
+"0.797427652733119"
+
+"Area under the curve"
+fpr, tpr, missclassificcations = roc_curve(test_target_4, lgst_preds)
+roc_auc = auc(fpr, tpr)
+"0.8980963259769693"
+
+"f1-score"
+lgst2_f1_score = f1_score(test_target_4,lgst_preds)
+" 0.5662100456621005"
+
+"classification_report"
+lgst_clf_rpt = classification_report(test_target_4, lgst_preds)
+"""
+'            precision recall   f1-score support         
+ 0           1.00      1.00      1.00    256680
+ 1           0.44      0.88      0.57      311
+total        1.00      1.00      1.00    256991
+"""
+
+"===========================================================MODEL VISUALIZATION================================================================="
+"ROC curve of the trainset"
+Roc_visualizer(y_train_4, lgst_t_preds)
+"ROC curve of the testset"
+Roc_visualizer(test_target_4, lgst_preds)
+
+"Since the ROC of the trainset is slightly higher than the test set"
+"It refutes both Underfitting and overfitting conditons"
+
+"Visualization summary"
+"========The orange line is the ROC curve"
+"========The area under that curve contains all right classifications"
+"========X= False Positive Rate"
+"========Y= True Positive Rate"
+
+
+
+"==========================================================Decision-Trees=================================================================="
+"Model Building"
+dt_clf = DecisionTreeClassifier()
+dt_clf.fit(X_train_4, y_train_4)
+
+
+"Predictions"
+dt_preds = dt_clf.predict(usd_applicant_dataset_4_test)
+
+"Trainset predictions"
+dt_t_preds = dt_clf.predict(X_train_4)
+
+"Confusion matrix"
+dt_cm = confusion_matrix(test_target_4,dt_preds)
+
+"accuracy-score"
+dt_accuracy = accuracy_score(test_target_4,dt_preds)
+"0.8738204839858205"
+
+"precision score"
+dt_precision = precision_score(test_target_4,dt_preds)
+"0.0094397262784872"
+
+"recall score"
+dt_recall = recall_score(test_target_4,dt_preds)
+"0.9935691318327974"
+
+"Area under the curve"
+fpr, tpr, missclassificcations = roc_curve(test_target_4, dt_preds)
+roc_auc_dt = auc(fpr, tpr)
+"0.9336222626594249"
+
+"f1-score"
+dt_f1_score = f1_score(test_target_4,dt_preds)
+"0.01870177031320926"
+
+"classification_report"
+dt_clf_rpt = classification_report(test_target_4, dt_preds)
+"""
+'       precision recall    f1-score support
+0       1.00      0.87      0.93     256680
+1       0.01      0.99      0.02        311
+total   1.00      0.87      0.93     256991
+
+"""
+"=======================================================MODEL VISUALIZATION================================================================="
+
+"Trainset ROC curve"
+Roc_visualizer(y_train_4, dt_t_preds)
+
+"Testset ROC curve"
+Roc_visualizer(test_target_4, dt_preds)
+
+"Since the ROC or trainset is slightly higher than testset ROC"
+"The above condition refutes Overfitting and Underfitting of the model"
+
+"Visualization summary"
+"========The orange line is the ROC curve"
+"========The area under that curve contains all right classifications"
+"========X= False Positive Rate"
+"========Y= True Positive Rate"
+
+
+"========================================================PHASE 6===================================================================="
+"=======================================================CONCLUSION================================================================="
+
+rclf_4 
+ "accuracy = 0.9966885999898829"
+ "rclf_4_precision = 0.2635726795096322"
+ "rclf_4_recall = 0.9678456591639871"
+ "roc_auc_rf4 = 0.9822846029963617"
+ "rclf4_f1_score =0.41431520991052995"
+ 
+lgst_clf
+"""    
+lgst2_accuracy
+Out[235]: 0.9968131179691118
+
+lgst2_4_precision
+Out[236]: 0.24701195219123506
+
+lgst2_4_recall
+Out[237]: 0.797427652733119
+
+roc_auc
+Out[238]: 0.897241175595171
+
+lgst2_f1_score
+Out[239]: 0.37718631178707224
+"""
+dt_clf
+"""
+dt_accuracy
+Out[240]: 0.9688004638294726
+
+dt_precision
+Out[241]: 0.035890641936649405
+
+dt_recall
+Out[242]: 0.9581993569131833
+
+roc_auc_dt
+Out[243]: 0.9635063326563735
+
+dt_f1_score
+Out[244]: 0.0691896912003715
+
+"""
+ 
+"When the amount of data on a class of a binomial classification problem is unbalanced"
+"Recall and f1-score which is a congromeration of recall and precision is a premium evaluator"
+"Thus considering recall, f1-score, accuracy and ROC_AUC"
+
+"The random forest model rclf_4 is the best model, which can be used to classify customers"
+
+"=========================================================PHASE 7====================================================================================" 
+"========================================================TO THE USER================================================================================="
+
+usd_applicant_dataset_4.shape
+
+"Top 20 observations of the feature importance dataset"
+importance_ = usd_applicant_dataset_4_feature_importances.head(20)
+
+df = pd.DataFrame()
+
+df['featuers'] = importance_.index.tolist()
+df['importance'] =importance_['importance'].tolist()
+
+"Ploting the top 20 importnat features of the dataset"
+plt.figure(figsize=(12,8))
+sns.barplot('featuers', 'importance', data=df, palette='tab10')
+plt.title(' Top 20 important features of the model ', fontsize=16)
+plt.xlabel('Features', fontsize=14)
+plt.ylabel('Importance', fontsize=14)
+plt.xticks(rotation=90)
+
+"As a preliminery check the banker could use these to say how likely an applicant can get the loan "
+"For Instance if an applicant has a really bad value in more than 15 of these columns"
+"Then the chances of he/she replaying the LOAN is really less"
+"If he or she has a good value accross more than 15 of these columns then the chances of that applicant getting the loan is pretty high"
+
+
+"===================================================================================================================================================="
+
+"Locality wise customer behaviour"
+
+addressVsapplicant = pd.crosstab(usd_applicant_dataset['addr_state'],usd_applicant_dataset['default_ind'])
+
+percentof_addressVsapplicant = addressVsapplicant.div(addressVsapplicant.sum(1).astype('float'), axis = 0)
+
+stacked = percentof_addressVsapplicant.stack().reset_index().rename(columns={0:'value'})
+
+'# plot grouped bar chart'
+plt.figure(figsize=(20,8))
+sns.barplot(x=stacked.addr_state, y=stacked.value, hue=stacked.default_ind)
+plt.title(' Address-wise Borrower Potentials', fontsize=16)
+plt.xlabel('Address', fontsize=14)
+plt.ylabel('Frequency', fontsize=14)
+plt.xticks(rotation=90)
+
+
+"We can infer from the above visualization"
+"That addr_states ME, NE AND ND have a not repaided the loan properly"
+"This shows that these area could be a poverty zone"
+"Thus if a customer shows up from this area for low probality of repayment purposes like"
+"wedding or small bussiness it's better to reject the loan"
+"Good few customers from IA nad ID have repaid the loan, this could be a posh area with potential customers"
+"thus the bank can make more advitisements in that locality"
+ 
+
+"====================================================END============================================================================================"
+
